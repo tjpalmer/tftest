@@ -91,7 +91,7 @@ def build_autoencoder(shape, samples):
     batch_count = len(samples) // batch_size
     with sess.as_default():
         # result = h_conv2.eval({x: samples[:1]})
-        for i in range(1000):
+        for i in range(25000):
             start = (i % batch_count) * batch_size
             batch = samples[start:start+batch_size]
             # test_batch = mnist.test.next_batch(50)
@@ -106,6 +106,19 @@ def build_autoencoder(shape, samples):
             #         y_: test_batch[1],
             #         keep_prob: 1.0}))
             train_step.run(feed_dict={x: batch})
+        # Save the model.
+        from datetime import datetime
+        from os import makedirs
+        from os.path import join
+        now = datetime.now()
+        time = now.strftime('%Y%m%d-%H%M%S')
+        name = 'texture-{}.cpkt'.format(time)
+        saver = tf.train.Saver()
+        dir_name = join('notes', 'models', time)
+        makedirs(dir_name)
+        out_name = saver.save(sess, join(dir_name, name))
+        print('Saved to {}'.format(out_name))
+        # Render sample output.
         y_image = tf.reshape(y_sample, [-1] + list(shape))
         images = []
         for i in range(batch_count):
