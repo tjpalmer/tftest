@@ -7,19 +7,24 @@ def build_autoencoder(shape, samples):
     shape = array(shape)
     x = tf.placeholder(tf.float32, shape=[None, shape.prod()])
     # y_ = tf.placeholder(tf.float32, shape=[None, shape.prod()])
-    # Encode 1.
-    W_conv1 = weight_variable([3, 3, 1, 8])
-    # b_conv1 = bias_variable([8])
+    # Encode 0.
     x_image = tf.reshape(x, [-1] + list(shape) + [1])
+    h_conv0 = tf.nn.relu(conv2d(x_image, weight_variable([3, 3, 1, 8])))
+    h_conv0b = tf.nn.relu(conv2d(h_conv0, weight_variable([3, 3, 8, 8])))
+    h_conv0c = tf.nn.relu(conv2d(h_conv0b, weight_variable([3, 3, 8, 8])))
+    # Encode 1.
+    # b_conv1 = bias_variable([8])
     # h_conv1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
     # h_pool1 = max_pool_2x2(h_conv1)
     h_conv1 = tf.nn.relu(tf.nn.conv2d(
-        x_image, W_conv1, padding='SAME', strides=[1, 2, 2, 1]))
+        h_conv0c, weight_variable([3, 3, 8, 8]),
+        padding='SAME', strides=[1, 2, 2, 1]))
     h_conv1b = tf.nn.relu(conv2d(h_conv1, weight_variable([3, 3, 8, 8])))
+    # h_conv1c = tf.nn.relu(conv2d(h_conv1b, weight_variable([3, 3, 8, 8])))
     # Encode 2.
-    W_conv2 = weight_variable([3, 3, 8, 8])
     h_conv2 = tf.nn.relu(tf.nn.conv2d(
-        h_conv1b, W_conv2, padding='SAME', strides=[1, 2, 2, 1]))
+        h_conv1b, weight_variable([3, 3, 8, 8]),
+        padding='SAME', strides=[1, 2, 2, 1]))
     h_conv2b = tf.nn.relu(conv2d(h_conv2, weight_variable([3, 3, 8, 8])))
     # Encode 3.
     W_conv3 = weight_variable([3, 3, 8, 8])
