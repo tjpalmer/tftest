@@ -32,7 +32,7 @@ def build_autoencoder(samples):
     # TODO See train_on_batch or fit_generator.
     batch_size = 50
     batch_count = len(samples) // batch_size
-    for i in range(200):
+    for i in range(1000):
         start = (i % batch_count) * batch_size
         # Prep batch.
         outputs = samples[start:start+batch_size]
@@ -44,6 +44,18 @@ def build_autoencoder(samples):
             print('{}: {}'.format(i, model.test_on_batch(x=inputs, y=outputs)))
         # Train.
         model.train_on_batch(x=inputs, y=outputs)
+    # Save the model.
+    from datetime import datetime
+    from os import makedirs
+    from os.path import join
+    now = datetime.now()
+    time = now.strftime('%Y%m%d-%H%M%S')
+    name = 'supres-{}.h5'.format(time)
+    dir_name = join('notes', 'models', time)
+    makedirs(dir_name)
+    out_name = join(dir_name, name)
+    model.save(out_name)
+    print('Saved to {}'.format(out_name))
     # Return output.
     inputs = samples[:batch_size*batch_count, ::scale, ::scale]
     inputs = inputs.reshape(list(inputs.shape) + [1])
