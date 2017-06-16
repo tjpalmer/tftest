@@ -1,4 +1,7 @@
-def build_autoencoder(samples):
+from numpy import ndarray
+
+
+def build_autoencoder(samples: ndarray):
     from keras.backend import set_image_data_format
     from keras.layers import Conv2D, UpSampling2D
     from keras.models import Sequential
@@ -10,32 +13,41 @@ def build_autoencoder(samples):
     # Build model.
     model = Sequential()
     # Input and initial filter capture.
+    filters = 64
     model.add(Conv2D(
         activation='relu',
-        filters=32,
-        input_shape=list(array(samples.shape[1:]) >> scale_steps) + [1],
+        filters=filters,
+        input_shape=(None, None, 1),
         kernel_size=(3, 3),
         padding='same'))
     model.add(Conv2D(
-        activation='relu', filters=32, kernel_size=(3, 3), padding='same'))
+        activation='relu', filters=filters, kernel_size=(3, 3), padding='same'))
     # Upsample and more texturing.
     for _ in range(scale_steps):
         model.add(UpSampling2D())
         model.add(Conv2D(
-            activation='relu', filters=32, kernel_size=(3, 3), padding='same'))
+            activation='relu', filters=filters, kernel_size=(3, 3),
+            padding='same'))
         model.add(Conv2D(
-            activation='relu', filters=32, kernel_size=(3, 3), padding='same'))
+            activation='relu', filters=filters, kernel_size=(3, 3),
+            padding='same'))
+    # Finishing touches.
+    for _ in range(1):  
+        model.add(Conv2D(
+            activation='relu', filters=filters, kernel_size=(3, 3),
+            padding='same'))
     model.add(Conv2D(
         activation='relu', filters=1, kernel_size=(3, 3), padding='same'))
-    model.compile(loss='mean_squared_error', optimizer=Adam())
+    model.compile(loss='mean_squared_error', optimizer=Adam(decay=1e-6))
     # Train.
     # TODO See train_on_batch or fit_generator.
     batch_size = 50
     batch_count = len(samples) // batch_size
-    for i in range(1000):
+    for i in range(2000):
         start = (i % batch_count) * batch_size
         # Prep batch.
         outputs = samples[start:start+batch_size]
+        # TODO Different offsets, noise, rotations, flips, ...
         inputs = outputs[:, ::scale, ::scale]
         outputs = outputs.reshape([-1] + list(outputs.shape[1:]) + [1])
         inputs = inputs.reshape([-1] + list(inputs.shape[1:]) + [1])
@@ -57,7 +69,7 @@ def build_autoencoder(samples):
     model.save(out_name)
     print('Saved to {}'.format(out_name))
     # Return output.
-    inputs = samples[:batch_size*batch_count, ::scale, ::scale]
+    inputs = samples[:, ::scale, ::scale]
     inputs = inputs.reshape(list(inputs.shape) + [1])
     outputs = model.predict(x=inputs)
     outputs = outputs.reshape(outputs.shape[:-1])
@@ -67,7 +79,7 @@ def build_autoencoder(samples):
 def main():
     from argparse import ArgumentParser
     from datetime import datetime
-    from matplotlib.pyplot import hist, show
+    from matplotlib.pyplot import figure, hist, imshow, show
     from numpy import array, prod
     from scipy.misc import imread
     from scipy.stats import truncnorm
@@ -78,28 +90,67 @@ def main():
     args = parser.parse_args()
     image = imread('450px-Amethyst_gem_stone_texture_wwarby_flickr.jpg')
     image = image.mean(axis=-1)
-    subs = split(image, 32)
+    figure()
     print(image.shape)
-    print(subs.shape)
-    samples = subs.reshape([prod(subs.shape[:2])] + list(subs.shape[2:]))
-    print(samples.shape)
-    images = build_autoencoder(samples)
-    print(images.min(), images.max())
-    images = images.reshape([10, 25] + list(images.shape[1:]))
-    print('{}'.format(images.shape))
+    imshow(image)
+    if args.model:
+        from keras.models import Model, load_model
+        # show_image(image[::4, ::4])
+        shrunk = image[::4, ::4]
+        figure()
+        imshow(shrunk)
+        subs = split(shrunk, 8)
+        # show_image(merge(subs))
+        old_grid = subs.shape[:2]
+        # subs = subs.reshape([-1] + list(subs.shape[2:]))
+        model = load_model(args.model)
+        # from ipdb import set_trace; set_trace()
+        # outs = model.predict(subs.reshape([-1] + list(subs.shape[1:]) + [1]))
+        # images = outs.reshape(outs.shape[:-1])
+        sub = merge(subs)
+        print(sub.shape)
+        out = model.predict(sub.reshape([1] + list(sub.shape) + [1]))
+        out = out.reshape(out.shape[1:-1])
+        # images = images[:250]
+    else:
+        subs = split(image, 32)
+        old_grid = subs.shape[:2]
+        print(image.shape)
+        print(subs.shape)
+        samples = subs.reshape([-1] + list(subs.shape[2:]))
+        print(samples.shape)
+        images = build_autoencoder(samples)
+        print(images.min(), images.max())
+        # images = images.reshape([10, 25] + list(images.shape[1:]))
+        print('{}'.format(images.shape))
+        out = merge(images.reshape(old_grid + images.shape[1:]))
+        # out = merge(images)
+    out[out > 255] = 255
     end_time = datetime.now()
     print(end_time)
     print(end_time - begin_time)
-    show_image_grid(images)
+    figure()
+    imshow(out)
+    print(out.shape)
+    # show_image_grid(images)
+    show()
 
 
-def show_image(image):
-    from matplotlib.pyplot import imshow, show, subplot2grid
+def merge(subs: ndarray):
+    from numpy import concatenate
+    # Merge vertically, then horizontally.
+    merged = concatenate(subs.transpose([0, 2, 1, 3]))
+    merged = concatenate(merged.transpose([1, 0, 2]), axis=1)
+    return merged
+
+
+def show_image(image: ndarray):
+    from matplotlib.pyplot import imshow, show
     imshow(image)
     show()
 
 
-def show_image_grid(subs):
+def show_image_grid(subs: ndarray):
     from matplotlib.pyplot import imshow, show, subplot2grid
     for i in range(subs.shape[0]):
         for j in range(subs.shape[1]):
@@ -108,7 +159,7 @@ def show_image_grid(subs):
     show()
 
 
-def split(image, size):
+def split(image: ndarray, size):
     from numpy import array
     rows = []
     for i in range(0, image.shape[0], size):
