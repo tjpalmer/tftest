@@ -7,13 +7,14 @@ def build_autoencoder(samples: ndarray):
     from keras.models import Sequential
     from keras.optimizers import Adam
     from numpy import array
+    from scipy.stats import norm
     set_image_data_format('channels_last')
-    scale_steps = 2
+    scale_steps = 1
     scale = 1 << scale_steps
     # Build model.
     model = Sequential()
     # Input and initial filter capture.
-    filters = 64
+    filters = 8
     model.add(Conv2D(
         activation='relu',
         filters=filters,
@@ -32,7 +33,7 @@ def build_autoencoder(samples: ndarray):
             activation='relu', filters=filters, kernel_size=(3, 3),
             padding='same'))
     # Finishing touches.
-    for _ in range(1):  
+    for _ in range(1):
         model.add(Conv2D(
             activation='relu', filters=filters, kernel_size=(3, 3),
             padding='same'))
@@ -43,12 +44,14 @@ def build_autoencoder(samples: ndarray):
     # TODO See train_on_batch or fit_generator.
     batch_size = 50
     batch_count = len(samples) // batch_size
-    for i in range(2000):
+    noise = norm(scale=20)
+    for i in range(500):
         start = (i % batch_count) * batch_size
         # Prep batch.
         outputs = samples[start:start+batch_size]
-        # TODO Different offsets, noise, rotations, flips, ...
+        # TODO Different offsets, noise, rotations, flips, sizes? ...
         inputs = outputs[:, ::scale, ::scale]
+        # inputs = inputs + noise.rvs(inputs.shape)
         outputs = outputs.reshape([-1] + list(outputs.shape[1:]) + [1])
         inputs = inputs.reshape([-1] + list(inputs.shape[1:]) + [1])
         # Sometimes see where we are.
@@ -101,18 +104,20 @@ def main():
         if args.random:
             # sub = randint(255, size=[16, 32])
             dist = truncnorm(0 / 128, 255 / 128, 0, 128)
-            sub = dist.rvs([64, 64])
+            sub = dist.rvs([8, 8])
             sub = sub.reshape([1] + list(sub.shape) + [1])
-            count = 2
+            count = 7
             for i in range(count):
-                figure()
-                imshow(sub.reshape(sub.shape[1:-1]))
+                # figure()
+                # imshow(sub.reshape(sub.shape[1:-1]))
                 sub = model.predict(sub)
                 sub[sub > 255] = 255
-                figure()
-                imshow(sub.reshape(sub.shape[1:-1]))
+                # figure()
+                # imshow(sub.reshape(sub.shape[1:-1]))
                 if i < count - 1:
-                    sub = 0.8 * sub + 0.2 * dist.rvs(size=sub.shape)
+                    sub = 0.9 * sub + 0.1 * dist.rvs(size=sub.shape)
+                if max(sub.shape) > 512:
+                    break
             out = sub
             # shrunker = randint(255, size=array(shrunk.shape) // 2)
             # shrunk = shrunker.repeat(2, axis=0).repeat(2, axis=1)
@@ -120,7 +125,7 @@ def main():
         else:
             # pic = imread('notes/100_0695.JPG').mean(axis=-1)
             # shrunk = pic[::16, ::16]
-            shrunk = image[::4, ::4]
+            shrunk = image[::2, ::2]
             figure()
             imshow(shrunk)
             sub = shrunk
