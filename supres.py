@@ -7,6 +7,7 @@ def build_autoencoder(samples: ndarray):
     from keras.models import Sequential
     from keras.optimizers import Adam
     from numpy import array
+    from numpy.random import randint
     from scipy.stats import norm
     set_image_data_format('channels_last')
     scale_steps = 1
@@ -14,43 +15,53 @@ def build_autoencoder(samples: ndarray):
     # Build model.
     model = Sequential()
     # Input and initial filter capture.
-    filters = 8
+    filters = 16
+    kernel_size = (3, 3)
     model.add(Conv2D(
         activation='relu',
         filters=filters,
         input_shape=(None, None, 1),
-        kernel_size=(3, 3),
+        kernel_size=kernel_size,
         padding='same'))
     model.add(Conv2D(
-        activation='relu', filters=filters, kernel_size=(3, 3), padding='same'))
+        activation='relu', filters=filters, kernel_size=kernel_size,
+        padding='same'))
     # Upsample and more texturing.
     for _ in range(scale_steps):
         model.add(UpSampling2D())
         model.add(Conv2D(
-            activation='relu', filters=filters, kernel_size=(3, 3),
+            activation='relu', filters=filters, kernel_size=kernel_size,
             padding='same'))
         model.add(Conv2D(
-            activation='relu', filters=filters, kernel_size=(3, 3),
+            activation='relu', filters=filters, kernel_size=kernel_size,
             padding='same'))
     # Finishing touches.
     for _ in range(1):
         model.add(Conv2D(
-            activation='relu', filters=filters, kernel_size=(3, 3),
+            activation='relu', filters=filters, kernel_size=kernel_size,
             padding='same'))
     model.add(Conv2D(
-        activation='relu', filters=1, kernel_size=(3, 3), padding='same'))
+        activation='relu', filters=1, kernel_size=kernel_size, padding='same'))
     model.compile(loss='mean_squared_error', optimizer=Adam(decay=1e-6))
     # Train.
     # TODO See train_on_batch or fit_generator.
     batch_size = 50
     batch_count = len(samples) // batch_size
-    noise = norm(scale=20)
-    for i in range(500):
+    noise = norm(scale=5)
+    for i in range(2000):
         start = (i % batch_count) * batch_size
         # Prep batch.
         outputs = samples[start:start+batch_size]
         # TODO Different offsets, noise, rotations, flips, sizes? ...
-        inputs = outputs[:, ::scale, ::scale]
+        offset_i = randint(2)
+        offset_j = randint(2)
+        inputs = outputs[:, offset_i::scale, offset_j::scale]
+        if randint(2):
+            inputs = inputs[:, ::-1, :]
+            outputs = outputs[:, ::-1, :]
+        if randint(2):
+            inputs = inputs[:, :, ::-1]
+            outputs = outputs[:, :, ::-1]
         # inputs = inputs + noise.rvs(inputs.shape)
         outputs = outputs.reshape([-1] + list(outputs.shape[1:]) + [1])
         inputs = inputs.reshape([-1] + list(inputs.shape[1:]) + [1])
@@ -105,6 +116,8 @@ def main():
             # sub = randint(255, size=[16, 32])
             dist = truncnorm(0 / 128, 255 / 128, 0, 128)
             sub = dist.rvs([8, 8])
+            # pic = imread('notes/100_0695.JPG').mean(axis=-1)
+            # sub = pic[::8, ::8]
             sub = sub.reshape([1] + list(sub.shape) + [1])
             count = 7
             for i in range(count):
@@ -123,12 +136,9 @@ def main():
             # shrunk = shrunker.repeat(2, axis=0).repeat(2, axis=1)
             # shrunk = 0.6 * shrunk + 0.4 * randint(255, size=shrunk.shape)
         else:
-            # pic = imread('notes/100_0695.JPG').mean(axis=-1)
-            # shrunk = pic[::16, ::16]
-            shrunk = image[::2, ::2]
+            sub = image[::2, ::2]
             figure()
-            imshow(shrunk)
-            sub = shrunk
+            imshow(sub)
             print(sub.shape)
             out = model.predict(sub.reshape([1] + list(sub.shape) + [1]))
         out = out.reshape(out.shape[1:-1])
