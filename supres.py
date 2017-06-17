@@ -3,7 +3,7 @@ from numpy import ndarray
 
 def build_autoencoder(samples: ndarray):
     from keras.backend import set_image_data_format
-    from keras.layers import Conv2D, UpSampling2D
+    from keras.layers import Conv2D, MaxPooling2D, UpSampling2D
     from keras.models import Sequential
     from keras.optimizers import Adam
     from numpy import array
@@ -26,6 +26,15 @@ def build_autoencoder(samples: ndarray):
     model.add(Conv2D(
         activation='relu', filters=filters, kernel_size=kernel_size,
         padding='same'))
+    # Down scaling.
+    for _ in range(scale_steps):
+        model.add(MaxPooling2D())
+        model.add(Conv2D(
+            activation='relu', filters=filters, kernel_size=kernel_size,
+            padding='same'))
+        model.add(Conv2D(
+            activation='relu', filters=filters, kernel_size=kernel_size,
+            padding='same'))
     # Upsample and more texturing.
     for _ in range(scale_steps):
         model.add(UpSampling2D())
@@ -47,22 +56,22 @@ def build_autoencoder(samples: ndarray):
     # TODO See train_on_batch or fit_generator.
     batch_size = 50
     batch_count = len(samples) // batch_size
-    noise = norm(scale=5)
-    for i in range(2000):
+    noise = norm(scale=50)
+    for i in range(1000):
         start = (i % batch_count) * batch_size
         # Prep batch.
         outputs = samples[start:start+batch_size]
         # TODO Different offsets, noise, rotations, flips, sizes? ...
         offset_i = randint(2)
         offset_j = randint(2)
-        inputs = outputs[:, offset_i::scale, offset_j::scale]
+        inputs = outputs  # [:, offset_i::scale, offset_j::scale]
         if randint(2):
             inputs = inputs[:, ::-1, :]
             outputs = outputs[:, ::-1, :]
         if randint(2):
             inputs = inputs[:, :, ::-1]
             outputs = outputs[:, :, ::-1]
-        # inputs = inputs + noise.rvs(inputs.shape)
+        inputs = inputs + noise.rvs(inputs.shape)
         outputs = outputs.reshape([-1] + list(outputs.shape[1:]) + [1])
         inputs = inputs.reshape([-1] + list(inputs.shape[1:]) + [1])
         # Sometimes see where we are.
@@ -117,30 +126,18 @@ def main():
             if args.random:
                 # sub = randint(255, size=[16, 32])
                 dist = truncnorm(0 / 128, 255 / 128, 0, 128)
-                sub = dist.rvs([8, 8])
+                sub = dist.rvs(image.shape)
             elif args.pic:
                 pic = imread(args.pic).mean(axis=-1)
                 sub = pic[::16, ::16]
             print(sub.shape)
             sub = sub.reshape([1] + list(sub.shape) + [1])
-            count = 1
-            for i in range(count):
-                figure()
-                imshow(sub.reshape(sub.shape[1:-1]))
-                sub = model.predict(sub)
-                sub[sub > 255] = 255
-                # figure()
-                # imshow(sub.reshape(sub.shape[1:-1]))
-                if i < count - 1 and args.random:
-                    sub = 0.9 * sub + 0.1 * dist.rvs(size=sub.shape)
-                if max(sub.shape) > 512:
-                    break
-            out = sub
+            out = model.predict(sub)
             # shrunker = randint(255, size=array(shrunk.shape) // 2)
             # shrunk = shrunker.repeat(2, axis=0).repeat(2, axis=1)
             # shrunk = 0.6 * shrunk + 0.4 * randint(255, size=shrunk.shape)
         else:
-            sub = image[::2, ::2]
+            sub = image  # [::2, ::2]
             figure()
             imshow(sub)
             print(sub.shape)
