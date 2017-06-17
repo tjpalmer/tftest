@@ -15,7 +15,7 @@ def build_autoencoder(samples: ndarray):
     # Build model.
     model = Sequential()
     # Input and initial filter capture.
-    filters = 16
+    filters = 8
     kernel_size = (3, 3)
     model.add(Conv2D(
         activation='relu',
@@ -101,6 +101,7 @@ def main():
     print(begin_time)
     parser = ArgumentParser()
     parser.add_argument('--model')
+    parser.add_argument('--pic')
     parser.add_argument('--random', action='store_true')
     args = parser.parse_args()
     image = imread('450px-Amethyst_gem_stone_texture_wwarby_flickr.jpg')
@@ -112,22 +113,25 @@ def main():
         from keras.models import load_model
         model = load_model(args.model)
         # show_image(image[::4, ::4])
-        if args.random:
-            # sub = randint(255, size=[16, 32])
-            dist = truncnorm(0 / 128, 255 / 128, 0, 128)
-            sub = dist.rvs([8, 8])
-            # pic = imread('notes/100_0695.JPG').mean(axis=-1)
-            # sub = pic[::8, ::8]
+        if args.pic or args.random:
+            if args.random:
+                # sub = randint(255, size=[16, 32])
+                dist = truncnorm(0 / 128, 255 / 128, 0, 128)
+                sub = dist.rvs([8, 8])
+            elif args.pic:
+                pic = imread(args.pic).mean(axis=-1)
+                sub = pic[::16, ::16]
+            print(sub.shape)
             sub = sub.reshape([1] + list(sub.shape) + [1])
-            count = 7
+            count = 1
             for i in range(count):
-                # figure()
-                # imshow(sub.reshape(sub.shape[1:-1]))
+                figure()
+                imshow(sub.reshape(sub.shape[1:-1]))
                 sub = model.predict(sub)
                 sub[sub > 255] = 255
                 # figure()
                 # imshow(sub.reshape(sub.shape[1:-1]))
-                if i < count - 1:
+                if i < count - 1 and args.random:
                     sub = 0.9 * sub + 0.1 * dist.rvs(size=sub.shape)
                 if max(sub.shape) > 512:
                     break
