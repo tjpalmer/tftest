@@ -95,32 +95,38 @@ def main():
     print(image.shape)
     imshow(image)
     if args.model:
-        from keras.models import Model, load_model
+        from keras.models import load_model
+        model = load_model(args.model)
         # show_image(image[::4, ::4])
-        shrunk = image[::4, ::4]
         if args.random:
-            from numpy.random import randint
-            shrunker = randint(255, size=array(shrunk.shape) // 2)
-            shrunk = shrunker.repeat(2, axis=0).repeat(2, axis=1)
-            shrunk = 0.6 * shrunk + 0.4 * randint(255, size=shrunk.shape)
+            # sub = randint(255, size=[16, 32])
+            dist = truncnorm(0 / 128, 255 / 128, 0, 128)
+            sub = dist.rvs([64, 64])
+            sub = sub.reshape([1] + list(sub.shape) + [1])
+            count = 2
+            for i in range(count):
+                figure()
+                imshow(sub.reshape(sub.shape[1:-1]))
+                sub = model.predict(sub)
+                sub[sub > 255] = 255
+                figure()
+                imshow(sub.reshape(sub.shape[1:-1]))
+                if i < count - 1:
+                    sub = 0.8 * sub + 0.2 * dist.rvs(size=sub.shape)
+            out = sub
+            # shrunker = randint(255, size=array(shrunk.shape) // 2)
+            # shrunk = shrunker.repeat(2, axis=0).repeat(2, axis=1)
+            # shrunk = 0.6 * shrunk + 0.4 * randint(255, size=shrunk.shape)
+        else:
             # pic = imread('notes/100_0695.JPG').mean(axis=-1)
             # shrunk = pic[::16, ::16]
-        figure()
-        imshow(shrunk)
-        # subs = split(shrunk, 8)
-        # # show_image(merge(subs))
-        # old_grid = subs.shape[:2]
-        # subs = subs.reshape([-1] + list(subs.shape[2:]))
-        model = load_model(args.model)
-        # from ipdb import set_trace; set_trace()
-        # outs = model.predict(subs.reshape([-1] + list(subs.shape[1:]) + [1]))
-        # images = outs.reshape(outs.shape[:-1])
-        # sub = merge(subs)
-        sub = shrunk
-        print(sub.shape)
-        out = model.predict(sub.reshape([1] + list(sub.shape) + [1]))
+            shrunk = image[::4, ::4]
+            figure()
+            imshow(shrunk)
+            sub = shrunk
+            print(sub.shape)
+            out = model.predict(sub.reshape([1] + list(sub.shape) + [1]))
         out = out.reshape(out.shape[1:-1])
-        # images = images[:250]
     else:
         subs = split(image, 32)
         old_grid = subs.shape[:2]
